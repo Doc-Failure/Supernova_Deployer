@@ -6,7 +6,7 @@ using UnityEngine;
 
 // using Unity.EditorCoroutines.Editor;
 
-public class ERC1155Metadata
+public class Dip721Metadata
 {
     public string name;
     public string description;
@@ -14,7 +14,7 @@ public class ERC1155Metadata
     public string attributes;
 
 
-    public ERC1155Metadata()
-    { this.attributes = "{ }"; }
+    public Dip721Metadata()
+    { this.attributes = "{}"; }
 
 }

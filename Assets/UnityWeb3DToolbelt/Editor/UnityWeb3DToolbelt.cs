@@ -2,12 +2,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Numerics;
 using System.Text;
-using Nethereum.ABI.FunctionEncoding.Attributes;
-using Nethereum.ABI.Model;
-using Nethereum.Contracts;
-using Nethereum.Contracts.CQS;
-using Nethereum.Contracts.Extensions;
-using Nethereum.JsonRpc.UnityClient;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Networking;
@@ -16,28 +10,30 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Unity.EditorCoroutines.Editor;
 using System.Diagnostics;
-using Debug=UnityEngine.Debug;
+using Debug = UnityEngine.Debug;
 
 
 public class UnityWeb3DToolbelt : EditorWindow
 {
 
-    bool icp_network_is_Running=false;
+    bool icp_network_is_Running = false;
     string icp_contract_name;
     string icp_contract_symbol;
-    string icp_contract_logo;
+    Texture2D icp_contract_logo;
+
+
+    public string[] icp_standards = new string[] { "Dip721" };
+    public int icp_standards_index = 0;
 
     Texture2D texture;
     Texture2D objectToDeploy;
     Texture2D objtdeploy;
 
-    List<ERC1155Metadata> tokenList = new List<ERC1155Metadata>();
-    private string ERC1155ImagesCID = "";
-    private string ERC1155CID = "";
+    List<Dip721Metadata> tokenList = new List<Dip721Metadata>();
 
     UnityEngine.Vector2 scrollPos;
     byte[] rawData;
-    [MenuItem("Web3D Toolbelt Tools/NFT Deployer")]
+    [MenuItem("Supernova Deployer/NFT Deployer")]
     public static void ShowWindow()
     {
         GetWindow(typeof(UnityWeb3DToolbelt), true, "NFT Deployer");      //GetWindow is a method inherited from the EditorWindow class
@@ -48,52 +44,61 @@ public class UnityWeb3DToolbelt : EditorWindow
 
         GUILayout.BeginVertical();
         scrollPos = GUILayout.BeginScrollView(scrollPos);
-        if(icp_network_is_Running){
+        if (!icp_network_is_Running)
+        {
             if (GUILayout.Button("Start Local Network", GUILayout.ExpandWidth(true)))
             {
-                ProcessStartInfo startInfo = new ProcessStartInfo(){ FileName = "/usr/local/bin/dfx", Arguments = "start --background --clean",
-                WorkingDirectory ="/Users/conve/Project/Supernova_Deployer/Assets/Archetypes/dfinity-dip721-archetypes/" ,CreateNoWindow = true, UseShellExecute=false,  RedirectStandardOutput = true };
-                Process proc = new Process(){ StartInfo = startInfo };
+                ProcessStartInfo startInfo = new ProcessStartInfo()
+                {
+                    FileName = "/usr/local/bin/dfx",
+                    Arguments = "start --background --clean",
+                    WorkingDirectory = "/Users/conve/Project/Supernova_Deployer/Assets/Archetypes/dfinity-dip721-archetypes/",
+                    CreateNoWindow = true,
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true
+                };
+                Process proc = new Process() { StartInfo = startInfo };
                 proc.Start();
                 Debug.Log("Listening on http://127.0.0.1:8000/");
-                icp_network_is_Running=!icp_network_is_Running;
+                icp_network_is_Running = !icp_network_is_Running;
             }
-        }else{
+        }
+        else
+        {
             if (GUILayout.Button("Stop Local Network", GUILayout.ExpandWidth(true)))
             {
-                ProcessStartInfo startInfo = new ProcessStartInfo(){ FileName = "/usr/local/bin/dfx", Arguments = "stop", WorkingDirectory ="/Users/conve/Project/Supernova_Deployer/Assets/Archetypes/dfinity-dip721-archetypes/" ,CreateNoWindow = true, UseShellExecute=false,  RedirectStandardOutput = true };
+                ProcessStartInfo startInfo = new ProcessStartInfo() { FileName = "/usr/local/bin/dfx", Arguments = "stop", WorkingDirectory = "/Users/conve/Project/Supernova_Deployer/Assets/Archetypes/dfinity-dip721-archetypes/", CreateNoWindow = true, UseShellExecute = false, RedirectStandardOutput = true };
                 Process proc = new Process() { StartInfo = startInfo };
                 proc.Start();
                 Debug.Log("Server Stopped");
-                icp_network_is_Running=!icp_network_is_Running;
+                icp_network_is_Running = !icp_network_is_Running;
             }
         }
         GUILayout.Label("");
         GUILayout.BeginVertical(EditorStyles.helpBox);
+
         GUILayout.Label("NFT Builder", EditorStyles.boldLabel);
         GUILayout.Label("");
-        
+
+        GUILayout.BeginVertical(EditorStyles.helpBox);
+        GUILayout.Label("Select Standard Archetypes");
+        icp_standards_index = EditorGUILayout.Popup(icp_standards_index, icp_standards);
         GUILayout.Label("");
         //dfx deploy --no-wallet --argument '(record { name = "Numbers One Through Fifty"; symbol = "NOTF"; logo = null; custodians = null })'
         icp_contract_name = EditorGUILayout.TextField("Contract Name", icp_contract_name);
         icp_contract_symbol = EditorGUILayout.TextField("Contract Symbol", icp_contract_symbol);
-        icp_contract_logo = EditorGUILayout.TextField("Contract Logo", icp_contract_logo);
-        
-        /* GUILayout.Label("");
-        GUILayout.Label("ChainLink Integrated Features", EditorStyles.boldLabel);
-        //GUILayout.BeginHorizontal(EditorStyles.toggleGroup);
-        chainLinkRandomMinterOption = EditorGUILayout.BeginToggleGroup("VRF Token Minter", chainLinkRandomMinterOption);
-        if (chainLinkRandomMinterOption)
+        icp_contract_logo = EditorGUILayout.ObjectField("Contract Logo", icp_contract_logo, typeof(Texture2D), true, GUILayout.Height(EditorGUIUtility.singleLineHeight)) as Texture2D;
+        GUILayout.Label("");
+        if (GUILayout.Button("Deploy"))
         {
-            MintPercentage = EditorGUILayout.FloatField("Probability to mint (%)", MintPercentage);
-            MintQuantity = EditorGUILayout.FloatField("Quantity to mint", MintQuantity);
+            contractDeployer();
         }
-        EditorGUILayout.EndToggleGroup(); */
+        GUILayout.EndVertical();
 
         GUILayout.Label("");
         if (GUILayout.Button("Add Asset", GUILayout.ExpandWidth(false)))
         {
-            tokenList.Add(new ERC1155Metadata());
+            tokenList.Add(new Dip721Metadata());
         }
         GUILayout.Label("");
         for (int i = 0; i < tokenList.Count; i++)
@@ -117,15 +122,20 @@ public class UnityWeb3DToolbelt : EditorWindow
         }
 
 
-        if (GUILayout.Button("Deploy NFT"))
+        GUILayout.BeginHorizontal();
+        if (GUILayout.Button("Mint Tokens", GUILayout.ExpandWidth(false)))
         {
-          /*   this.StartCoroutine(ImagesDeployer());
-            this.StartCoroutine(MetadataDeployer());
-            this.StartCoroutine(DeployToken()); */
+            tokenMinter();
         }
+        if (GUILayout.Button("Open Web Interface", GUILayout.ExpandWidth(false)))
+        {
+            openUI();
+        }
+        GUILayout.EndHorizontal();
         GUILayout.Label("");
         EditorGUI.BeginDisabledGroup(true);
-        if (GUILayout.Button("Deploy on Mainnet")){}
+        if (GUILayout.Button("Deploy on Mainnet")) { }
+
         EditorGUI.EndDisabledGroup();
 
         GUILayout.EndVertical();
@@ -134,118 +144,67 @@ public class UnityWeb3DToolbelt : EditorWindow
         GUILayout.EndVertical();
     }
 
-    private void contractDeployer(){
-        ProcessStartInfo startInfo = new ProcessStartInfo(){ FileName = "/usr/local/bin/dfx", Arguments = "start --background --clean",
-        WorkingDirectory ="/Users/conve/Project/Supernova_Dip721_Deployer/Assets/dfinity-dip721-archetypes/" ,CreateNoWindow = true, UseShellExecute=false,  RedirectStandardOutput = true };
-        Process proc = new Process(){ StartInfo = startInfo };
+    private void contractDeployer()
+    {
+        ProcessStartInfo startInfo = new ProcessStartInfo()
+        {
+            FileName = "/usr/local/bin/dfx",
+            Arguments = "deploy --no-wallet --argument '(record { name = \"" + icp_contract_name + "\"; symbol = \"" + icp_contract_symbol + "\"; logo = null; custodians = null })'",
+            WorkingDirectory = "/Users/conve/Project/Supernova_Deployer/Assets/Archetypes/dfinity-dip721-archetypes/",
+            CreateNoWindow = true,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardInput = true,
+            RedirectStandardError = true
+        };
+        Process proc = new Process() { StartInfo = startInfo };
         proc.Start();
-        Debug.Log("Listening on http://127.0.0.1:8000/");
-        icp_network_is_Running=!icp_network_is_Running;
+        Debug.Log("Contract Deployed!");
     }
 
-    //passare da DeployObject a DeployNFT
-   /*  private IEnumerator ImagesDeployer()
+    private void openUI()
     {
-        WWWForm form = new WWWForm();
+        string path = "/Users/conve/Project/Supernova_Deployer/Assets/Archetypes/dfinity-dip721-archetypes/.dfx/local/canister_ids.json";
+        //Read the text from directly from the test.txt file
+        StreamReader reader = new StreamReader(path);
+        string value = reader.ReadToEnd();
+        reader.Close();
 
+        dynamic objects = JsonConvert.DeserializeObject<dynamic>(value);
+        string Candid_UI = objects["__Candid_UI"]["local"].ToString();
+        string dip721_nft_container = objects["dip721_nft_container"]["local"].ToString();
+
+        Application.OpenURL("http://127.0.0.1:8000/?canisterId=" + Candid_UI + "&id=" + dip721_nft_container);
+
+    }
+
+    private void tokenMinter()
+    {
         for (int i = 0; i < tokenList.Count; i++)
         {
-            Texture2D decopmpresseTex = DeCompress(tokenList[i].image);
-            var bytes = decopmpresseTex.EncodeToPNG();
-            form.AddBinaryData("file", bytes, "image_ID_" + i + ".png", "image/png");
-        }
-
-        UnityWebRequest www = UnityWebRequest.Post("https://api.nft.storage/upload", form);
-        www.SetRequestHeader("Authorization", "Bearer " + NFTStorageBearerApi);
-        www.SetRequestHeader("accept", "application/json");
-        yield return www.SendWebRequest();
-
-        if (www.result != UnityWebRequest.Result.Success)
-        {
-            Debug.Log(www.error);
-        }
-        else
-        {
-            dynamic objects = JsonConvert.DeserializeObject<dynamic>(www.downloadHandler.text);
-            ERC1155ImagesCID = objects["value"]["cid"].ToString();
-        }
-    } */
-
-   /*  private IEnumerator MetadataDeployer()
-    {
-        WWWForm form = new WWWForm();
-
-        //'meta=\'{"image":null,"name":"Storing the Worlds Most Valuable Virtual Assets with NFT.Storage","description":"The metaverse is here. Where is it all being stored?","properties":{"type":"blog-post","origins":{"http":"https://nft.storage/blog/post/2021-11-30-hello-world-nft-storage/","ipfs":"ipfs://bafybeieh4gpvatp32iqaacs6xqxqitla4drrkyyzq6dshqqsilkk3fqmti/blog/post/2021-11-30-hello-world-nft-storage/"},"authors":[{"name":"David Choi"}],"content":{"text/markdown":"The last year has witnessed the explosion of NFTs onto the world’s mainstage. From fine art to collectibles to music and media, NFTs are quickly demonstrating just how quickly grassroots Web3 communities can grow, and perhaps how much closer we are to mass adoption than we may have previously thought. <... remaining content omitted ...>"}}}\''
-
-        for (int i = 0; i < tokenList.Count; i++)
-        {
-            string tokenMeta = "{";
-            tokenMeta += "\"name\":\"" + tokenList[i].name + "\",";
-            tokenMeta += "\"description\":\"" + tokenList[i].description + "\",";
-            tokenMeta += "\"image\":\"https://" + ERC1155ImagesCID + ".ipfs.nftstorage.link/image_ID_" + i + ".png\",";
-            tokenMeta += "\"attributes\":" + tokenList[i].attributes + "}";
-            byte[] bodyRaw = Encoding.UTF8.GetBytes(tokenMeta);
-            form.AddBinaryData("file", bodyRaw, "meta_ID_" + i + ".json", "application/json'");
-        }
-        UnityWebRequest www = UnityWebRequest.Post("https://api.nft.storage/upload", form);
-        www.SetRequestHeader("Authorization", "Bearer " + NFTStorageBearerApi);
-        www.SetRequestHeader("accept", "application/json");
-        yield return www.SendWebRequest();
-
-        if (www.result != UnityWebRequest.Result.Success)
-        {
-            Debug.Log(www.error);
-        }
-        else
-        {
-            dynamic objects = JsonConvert.DeserializeObject<dynamic>(www.downloadHandler.text);
-            ERC1155CID = objects["value"]["cid"].ToString();
-        }
-    } */
-
-    //qui
-    /* private IEnumerator DeployToken()
-    {
-        string nameTokenList = "";
-        for (int i = 0; i < tokenList.Count; i++)
-        {
-            nameTokenList += tokenList[i].name;
-            if (i < tokenList.Count - 1)
+            string principal = "dslrb-t4kbs-vgf3x-vnuuw-cj4xz-y5mdo-yl57a-tgvo6-jvisx-hamko-jqe";
+            //string request="\"(principal\"+principal+\",vec{record{purpose=variant{Rendered};data=blob\"hello\";key_val_data=vec{record{\"contentType\";variant{TextContent=\"text/plain\"};};record{\"locationType\";variant{Nat8Content=4:nat8}};}}},blob\"hello\")\"";
+            string req = "dfx canister call dip721_nft_container mintDip721 \"(principal\"" + principal + "\",vec{record{purpose=variant{Rendered};data=blob\"hello\";key_val_data=vec{record{\"contentType\";variant{TextContent=\"text/plain\"};};record{\"locationType\";variant{Nat8Content=4:nat8}};}}},blob\"hello\")\"";
+            ProcessStartInfo startInfo = new ProcessStartInfo()
             {
-                nameTokenList += ",";
+                FileName = "/usr/local/bin/dfx",
+                Arguments = req,
+                WorkingDirectory = "/Users/conve/Project/Supernova_Deployer/Assets/Archetypes/dfinity-dip721-archetypes/",
+                CreateNoWindow = true,
+                UseShellExecute = false,
+                RedirectStandardOutput = true
+            };
+            Process proc = new Process() { StartInfo = startInfo };
+
+            try
+            {
+                proc.Start();
+            }
+            finally
+            {
+                Debug.Log(proc.HasExited);
             }
         }
-        string request = "http://localhost:8080/generic-webhook-trigger/invoke?NAME=" + ContractName + "&TOKENS_LIST=" + nameTokenList + "&IPFS_ENDPOINT=https://" + ERC1155CID + ".ipfs.nftstorage.link&MINTING_PROBABILITY=" + MintPercentage + "&MINTING_QUANTITY=" + MintQuantity + "&CHAIN_ID=" + networksList.GetChainId(index);
-        UnityWebRequest www = UnityWebRequest.Get(request);
-        yield return www.SendWebRequest();
-
-        if (www.isNetworkError)
-        {
-            Debug.Log("Error While Sending: " + www.error);
-        }
-        else
-        {
-            Debug.Log("NFT Generation in progress");
-        }
-    } */
-
-   /*  static Texture2D DeCompress(Texture2D source)
-    {
-        RenderTexture renderTex = RenderTexture.GetTemporary(
-                    source.width,
-                    source.height,
-                    0,
-                    RenderTextureFormat.Default,
-                    RenderTextureReadWrite.Linear);
-
-        Graphics.Blit(source, renderTex);
-        RenderTexture previous = RenderTexture.active;
-        RenderTexture.active = renderTex;
-        Texture2D readableText = new Texture2D(source.width, source.height);
-        readableText.ReadPixels(new Rect(0, 0, renderTex.width, renderTex.height), 0, 0);
-        readableText.Apply();
-        RenderTexture.active = previous;
-        RenderTexture.ReleaseTemporary(renderTex);
-        return readableText;
-    } */
+        Debug.Log(tokenList.Count + " Tokens Minted!");
+    }
 }
