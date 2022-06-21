@@ -52,7 +52,7 @@ public class UnityWeb3DToolbelt : EditorWindow
                 {
                     FileName = "/usr/local/bin/dfx",
                     Arguments = "start --background --clean",
-                    WorkingDirectory = "/Users/conve/Project/Supernova_Deployer/Assets/Archetypes/dfinity-dip721-archetypes/",
+                    WorkingDirectory = Application.dataPath + "/Assets/Archetypes/dfinity-dip721-archetypes/",
                     CreateNoWindow = true,
                     UseShellExecute = false,
                     RedirectStandardOutput = true
@@ -67,7 +67,7 @@ public class UnityWeb3DToolbelt : EditorWindow
         {
             if (GUILayout.Button("Stop Local Network", GUILayout.ExpandWidth(true)))
             {
-                ProcessStartInfo startInfo = new ProcessStartInfo() { FileName = "/usr/local/bin/dfx", Arguments = "stop", WorkingDirectory = "/Users/conve/Project/Supernova_Deployer/Assets/Archetypes/dfinity-dip721-archetypes/", CreateNoWindow = true, UseShellExecute = false, RedirectStandardOutput = true };
+                ProcessStartInfo startInfo = new ProcessStartInfo() { FileName = "/usr/local/bin/dfx", Arguments = "stop", WorkingDirectory = Application.dataPath + "/Assets/Archetypes/dfinity-dip721-archetypes/", CreateNoWindow = true, UseShellExecute = false, RedirectStandardOutput = true };
                 Process proc = new Process() { StartInfo = startInfo };
                 proc.Start();
                 Debug.Log("Server Stopped");
@@ -150,7 +150,7 @@ public class UnityWeb3DToolbelt : EditorWindow
         {
             FileName = "/usr/local/bin/dfx",
             Arguments = "deploy --no-wallet --argument '(record { name = \"" + icp_contract_name + "\"; symbol = \"" + icp_contract_symbol + "\"; logo = null; custodians = null })'",
-            WorkingDirectory = "/Users/conve/Project/Supernova_Deployer/Assets/Archetypes/dfinity-dip721-archetypes/",
+            WorkingDirectory = Application.dataPath + "/Assets/Archetypes/dfinity-dip721-archetypes/",
             CreateNoWindow = true,
             UseShellExecute = false,
             RedirectStandardOutput = true,
@@ -164,7 +164,7 @@ public class UnityWeb3DToolbelt : EditorWindow
 
     private void openUI()
     {
-        string path = "/Users/conve/Project/Supernova_Deployer/Assets/Archetypes/dfinity-dip721-archetypes/.dfx/local/canister_ids.json";
+        string path = Application.dataPath + "/Assets/Archetypes/dfinity-dip721-archetypes/.dfx/local/canister_ids.json";
         //Read the text from directly from the test.txt file
         StreamReader reader = new StreamReader(path);
         string value = reader.ReadToEnd();
@@ -189,7 +189,7 @@ public class UnityWeb3DToolbelt : EditorWindow
             {
                 FileName = "/usr/local/bin/dfx",
                 Arguments = req,
-                WorkingDirectory = "/Users/conve/Project/Supernova_Deployer/Assets/Archetypes/dfinity-dip721-archetypes/",
+                WorkingDirectory = Application.dataPath + "/Assets/Archetypes/dfinity-dip721-archetypes/",
                 CreateNoWindow = true,
                 UseShellExecute = false,
                 RedirectStandardOutput = true
